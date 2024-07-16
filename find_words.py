@@ -13,8 +13,6 @@ class Word:
         
 
 def main():
-    words_multipic = []
-    words_subtlex = []
     with open('MultiPic.csv', 'r') as f:
         reader = csv.reader(f, delimiter=';')
         for row in reader:
