@@ -2,6 +2,7 @@ $(document).ready(function () {
     $('#fileInput1').on('change', handleFileSelect);
     $('#fileInput2').on('change', handleFileSelect);
     $("#generateResultsBtn").on('click', generateTableResults);
+    $("#generateCsvResults").on('click', generateCsvResults);
 
     let file1Loaded = false;
     let file2Loaded = false;
@@ -10,6 +11,11 @@ $(document).ready(function () {
     let file1Contents = [];
     let file2Contents = [];
 
+    /**
+     * Handles the file selection event.
+     * 
+     * @param {Event} event - The file selection event.
+     */
     function handleFileSelect(event) {
         const file = event.target.files[0];
         const reader = new FileReader();
@@ -23,6 +29,13 @@ $(document).ready(function () {
         reader.readAsText(file);
     }
 
+    /**
+     * Handles the event when a file is read.
+     *
+     * @param {object} target - The event target object.
+     * @param {string} fileContentsId - The ID of the file contents.
+     * @returns {void}
+     */
     function onReadFile(target, fileContentsId) {
         let contents = target.result;
         let fileName = target.fileName;
@@ -109,6 +122,10 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Retrieves the CSV delimiter based on the selected checkbox.
+     * @returns {string} The CSV delimiter.
+     */
     function getCsvDelimiter() {
         if ($('#semicolon').is(':checked')) {
             return ';';
@@ -117,6 +134,11 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Adds a restriction to the specified file number.
+     * 
+     * @param {number} fileNumber - The file number to add the restriction to.
+     */
     function addRestriction(fileNumber) {
         const restrictionId = `restriction-${restrictionIdNext++}`;
         const restrictionHtml = `
@@ -184,6 +206,11 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Generates the results by combining the words from two loaded files.
+     * 
+     * @returns {Array} The combined array of words from both files.
+     */
     function generateResults() {
         if (!file1Loaded || !file2Loaded) {
             alert('Please select both files');
@@ -198,6 +225,10 @@ $(document).ready(function () {
         return combined;
     }
 
+    /**
+     * Generates a table of results based on the selected columns from two files.
+     * @returns {void}
+     */
     function generateTableResults() {
         let result = generateResults();
         let resultHtml = '<table class="table table-bordered table-striped mx-4 my-4"><thead><tr>';
@@ -247,6 +278,71 @@ $(document).ready(function () {
         $('#results').html(resultHtml);
     }
 
+    /**
+     * Generates a CSV file containing the results.
+     * 
+     * @returns {void}
+     */
+    function generateCsvResults() {
+        let resultCsv = '';
+        let delimiter = getCsvDelimiter();
+        let result = generateResults();
+        let file1Columns = file1Contents[0];
+        let file2Columns = file2Contents[0];
+
+        for (let i = 0; i < file1Columns.length; i++) {
+            if (!isColumnSelected(1, i)) {
+                continue;
+            }
+            resultCsv += file1Columns[i].replace('\r', '') + delimiter;
+        }
+        for (let i = 0; i < file2Columns.length; i++) {
+            if (!isColumnSelected(2, i)) {
+                continue;
+            }
+            resultCsv += file2Columns[i].replace('\r', '') + delimiter;
+        }
+
+        resultCsv += '\n';
+        for (let i = 1; i < result.length; i++) {
+            let row = result[i];
+            let tempCsv = '';
+            let allEmpty = true;
+            for (let j = 0; j < row.length; j++) {
+                let columns = row[j];
+                for (let k = 0; k < columns.length; k++) {
+                    if (!isColumnSelected(j + 1, k)) {
+                        continue;
+                    }
+
+                    if (allEmpty && columns[k] !== undefined && columns[k] !== '') {
+                        allEmpty = false;
+                    }
+                    tempCsv += columns[k].replace('\r', '') + delimiter;
+                }
+            }
+            
+            console.log(tempCsv);
+            if (!allEmpty) {
+                tempCsv += '\n';
+                resultCsv += tempCsv;
+            }
+        }
+
+        
+        let blob = new Blob([resultCsv], { type: 'text/csv' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'results.csv';
+        a.click();
+    }
+
+    /**
+     * Retrieves the restrictions based on the given file number.
+     * @param {number} fileNumber - The file number to retrieve restrictions for.
+     * @returns {Array} An array of restrictions.
+     */
     function getRestrictions(fileNumber) {
         let restrictions = [];
         $('.group-' + fileNumber).each(function () {
@@ -351,6 +447,14 @@ $(document).ready(function () {
         return file2Words;
     }
 
+    /**
+     * Evaluates an expression based on the given comparison operator and returns a boolean value.
+     *
+     * @param {any} value - The value to be evaluated.
+     * @param {string} comparison - The comparison operator to be used. Possible values are '===', '!==', '>', '<', '>=', '<=', 'contains', 'not_contains', 'starts_with', 'contains_character', 'starts_with_character'.
+     * @param {any} compareValue - The value to compare against.
+     * @returns {boolean} - The result of the evaluation.
+     */
     function evaluateExpr(value, comparison, compareValue) {
         let passed = false;
         if (comparison === '===') {
@@ -390,6 +494,12 @@ $(document).ready(function () {
         return passed;
     }
 
+    /**
+     * Combines two arrays of objects based on a selected index word.
+     * @param {Array} file1Words - The first array of objects.
+     * @param {Array} file2Words - The second array of objects.
+     * @returns {Array} - The combined array of objects.
+     */
     function combineArrays(file1Words, file2Words) {
         let tempFile1Words = JSON.parse(JSON.stringify(file1Words));
         let tempFile2Words = JSON.parse(JSON.stringify(file2Words));
@@ -421,6 +531,12 @@ $(document).ready(function () {
         return combined;
     }
 
+    /**
+     * Parses a comparable value.
+     * 
+     * @param {string} val - The value to be parsed.
+     * @returns {number|string} - The parsed value.
+     */
     function parseComparableValue(val) {
         let input = val.replace(',', '.');
         if (/^-?\d+$/.test(input)) {
@@ -432,6 +548,9 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Handles the logic for when both files are loaded.
+     */
     function onBothFilesLoaded() {
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
@@ -466,6 +585,13 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Checks if a specific column is selected for a given file.
+     *
+     * @param {string} file - The file name.
+     * @param {number} index - The column index.
+     * @returns {boolean} - Returns true if the column is selected, false otherwise.
+     */
     function isColumnSelected(file, index) {
         return $(`input[data-file="${file}"][data-index="${index}"]`).is(':checked');
     }
