@@ -195,6 +195,8 @@ $(document).ready(function () {
         let resultHtml = '<table class="table table-bordered table-striped mx-4"><thead><tr>';
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
+        file2Columns.splice($("#select-2").find(":selected").val(), 1);
+
         for (let i = 0; i < file1Columns.length; i++) {
             resultHtml += '<th>' + file1Columns[i] + '</th>';
         }
@@ -391,7 +393,7 @@ $(document).ready(function () {
                 if (word === tempFile2Words[j][file2IndexWord]) {
                     let obj1 = JSON.parse(JSON.stringify(tempFile1Words[i]));
                     let obj2 = JSON.parse(JSON.stringify(tempFile2Words[j]));
-                    delete obj2[file2IndexWord];
+                    obj2.splice(file2IndexWord, 1);
                     combined.push([obj1, obj2]);
                     break;
                 }
