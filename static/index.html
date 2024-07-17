@@ -47,13 +47,24 @@
             </div>
         </div>
 
-        <div class="container text-center mt-5">
-            <button id="generateResultsBtn" class="btn btn-primary mt-2">Generate results</button>
+        <div class="container mt-5">
+            <div id="checkbox-group" class="form-check" style="display: none;"></div>
         </div>
+
+        <div class="dropdown container text-center my-2">
+            <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+              Generate results
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+              <li><button id="generateResultsBtn" class="dropdown-item">Show table of results</a></li>
+              <li><button id="generateCsvResults" class="dropdown-item">Download CSV with results</a></li>
+            </ul>
+          </div>
+        
 
         <div id="results"></div>
     </main>
-    <footer class="footer fixed-bottom mb-3 bg-light">
+    <footer class="footer mb-3 bg-light">
         <div class="container text-center">
             <span class="text-black">
                 © 2024

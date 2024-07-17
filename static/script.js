@@ -1,7 +1,7 @@
 $(document).ready(function () {
     $('#fileInput1').on('change', handleFileSelect);
     $('#fileInput2').on('change', handleFileSelect);
-    $("#generateResultsBtn").on('click', generateResults);
+    $("#generateResultsBtn").on('click', generateTableResults);
 
     let file1Loaded = false;
     let file2Loaded = false;
@@ -74,7 +74,7 @@ $(document).ready(function () {
 
         const columns = rows[0].split(getCsvDelimiter());
 
-        const select = $('<select class="form-select" id="select-' + fileNumber + '"></select>');
+        const select = $('<select class="form-select word-select" id="select-' + fileNumber + '"></select>');
         const labelSelect = $('<label for="select-' + fileNumber + '">Select word column</label>');
         for (let i = 0; i < columns.length; i++) {
             select.append('<option value="' + i + '">' + columns[i] + '</option>');
@@ -103,6 +103,10 @@ $(document).ready(function () {
         parentDiv.append(fileContent);
 
         $('#addRestrictionBtn' + fileNumber).on('click', addRestriction.bind(null, fileNumber));
+
+        if (file1Loaded && file2Loaded) {
+            onBothFilesLoaded();
+        }
     }
 
     function getCsvDelimiter() {
@@ -134,7 +138,7 @@ $(document).ready(function () {
                 </select>
                 <input type="text" class="form-control compare-value" placeholder="Enter value">
                 <select id="${restrictionId}-select-column2" class="form-select" aria-label="Column Select"></select>
-                <div class ="compare-options">
+                <div class="compare-options">
                     <div class="form-check form-check-inline">
                         <input class="form-check-input compare-type" type="radio" name="compareType${restrictionId}" value="value" checked>
                         <label class="form-check-label">Value</label>
@@ -185,33 +189,46 @@ $(document).ready(function () {
             alert('Please select both files');
             return;
         }
-        let result = undefined;
 
         let file1Words = generateFile1Results();
         let file2Words = generateFile2Results();
 
         let combined = combineArrays(file1Words, file2Words);
 
-        let resultHtml = '<table class="table table-bordered table-striped mx-4"><thead><tr>';
+        return combined;
+    }
+
+    function generateTableResults() {
+        let result = generateResults();
+        let resultHtml = '<table class="table table-bordered table-striped mx-4 my-4"><thead><tr>';
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
-        file2Columns.splice($("#select-2").find(":selected").val(), 1);
 
         for (let i = 0; i < file1Columns.length; i++) {
+            if (!isColumnSelected(1, i)) {
+                continue;
+            }
             resultHtml += '<th>' + file1Columns[i] + '</th>';
         }
         for (let i = 0; i < file2Columns.length; i++) {
+            if (!isColumnSelected(2, i)) {
+                continue;
+            }
             resultHtml += '<th>' + file2Columns[i] + '</th>';
         }
         resultHtml += '</tr></thead><tbody>';
 
-        for (let i = 1; i < combined.length; i++) {
-            let row = combined[i];
+        for (let i = 1; i < result.length; i++) {
+            let row = result[i];
             let tempHtml = '<tr>';
             let allEmpty = true;
             for (let j = 0; j < row.length; j++) {
                 let columns = row[j];
                 for (let k = 0; k < columns.length; k++) {
+                    if (!isColumnSelected(j + 1, k)) {
+                        continue;
+                    }
+
                     if (allEmpty && columns[k] !== undefined && columns[k] !== '') {
                         allEmpty = false;
                     }
@@ -243,6 +260,10 @@ $(document).ready(function () {
         return restrictions;
     }
 
+    /**
+     * Generates file1 results based on the given restrictions and selected options.
+     * @returns {Array} An array of file1 words that pass the restrictions.
+     */
     function generateFile1Results() {
         let file1Words = [];
         let isAnd = $('#and1').is(':checked');
@@ -366,8 +387,6 @@ $(document).ready(function () {
             }
         }
 
-        //console.log("Expression", value, comparison, compareValue, passed, " with value types: ", typeof value, typeof compareValue);
-
         return passed;
     }
 
@@ -393,7 +412,6 @@ $(document).ready(function () {
                 if (word === tempFile2Words[j][file2IndexWord]) {
                     let obj1 = JSON.parse(JSON.stringify(tempFile1Words[i]));
                     let obj2 = JSON.parse(JSON.stringify(tempFile2Words[j]));
-                    obj2.splice(file2IndexWord, 1);
                     combined.push([obj1, obj2]);
                     break;
                 }
@@ -412,5 +430,43 @@ $(document).ready(function () {
         } else {
             return input;
         }
+    }
+
+    function onBothFilesLoaded() {
+        let file1Columns = file1Contents[0];
+        let file2Columns = file2Contents[0];
+
+        $('#checkbox-group').show();
+        $('#checkbox-group').empty();
+
+        $('#checkbox-group').append('<h2>Choose columns to show</h2>');
+
+        for (let i = 0; i < file1Columns.length; i++) {
+            let label = file1Columns[i];
+            $('#checkbox-group').append(`
+                <div class="form-check checkbox-item">
+                    <input class="form-check-input" type="checkbox" value="" data-file="1" data-index="${i}" id="1-${label}">
+                    <label class="form-check-label checkbox-label" for="1-${label}">
+                        ${label}
+                    </label>
+                </div>
+            `);
+        }
+
+        for (let i = 0; i < file2Columns.length; i++) {
+            let label = file2Columns[i];
+            $('#checkbox-group').append(`
+                <div class="form-check checkbox-item">
+                    <input class="form-check-input" type="checkbox" value="" data-file="2" data-index="${i}" id="2-${label}">
+                    <label class="form-check-label checkbox-label" for="2-${label}">
+                        ${label}
+                    </label>
+                </div>
+            `);
+        }
+    }
+
+    function isColumnSelected(file, index) {
+        return $(`input[data-file="${file}"][data-index="${index}"]`).is(':checked');
     }
 });
