@@ -1,0 +1,42 @@
+.file-upload {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    border: 2px dashed #ddd;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.file-icon {
+    font-size: 50px;
+    color: #007bff;
+}
+
+.condition-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.condition-group .form-select,
+.condition-group .form-control,
+.condition-group .form-check {
+    margin-right: 10px;
+}
+
+.compare-options {
+    display: flex;
+    flex-direction: column;
+}
+
+.delete-btn {
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin-right: 10px;
+}
