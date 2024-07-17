@@ -458,7 +458,7 @@ $(document).ready(function () {
         if (value === undefined || value === '' || value === null) {
             return false;
         }
-        
+
         let passed = false;
         if (comparison === '===') {
             passed = value == compareValue;
@@ -477,7 +477,8 @@ $(document).ready(function () {
         } else if (comparison === 'not_contains') {
             passed = !value.includes(compareValue);
         } else if (comparison === 'starts_with') {
-            passed = value.startsWith(compareValue);
+            console.log("Value: " + value + " CompareValue: " + compareValue, "Types: " + typeof value + " " + typeof compareValue);
+            passed = value.substring(0, compareValue.length) === compareValue;
         } else if (comparison === 'contains_character') {
             for (let i = 0; i < compareValue.length; i++) {
                 if (value.includes(compareValue[i])) {
@@ -486,8 +487,9 @@ $(document).ready(function () {
                 }
             }
         } else if (comparison === 'starts_with_character') {
+            console.log("Value: " + value + " CompareValue: " + compareValue, "Types: " + typeof value + " " + typeof compareValue);
             for (let i = 0; i < compareValue.length; i++) {
-                if (value.startsWith(compareValue[i])) {
+                if (value.substring(0, compareValue[i].length) === compareValue[i]) {
                     passed = true;
                     break;
                 }
@@ -504,6 +506,7 @@ $(document).ready(function () {
      * @returns {Array} - The combined array of objects.
      */
     function combineArrays(file1Words, file2Words) {
+        let processedWords = [];
         let tempFile1Words = JSON.parse(JSON.stringify(file1Words));
         let tempFile2Words = JSON.parse(JSON.stringify(file2Words));
 
@@ -513,10 +516,15 @@ $(document).ready(function () {
         let combined = [];
         for (let i = 0; i < tempFile1Words.length; i++) {
             let word = tempFile1Words[i][file1IndexWord];
-            if (word === undefined || word === '' || word === null) {
+            if (processedWords.includes(word)) {
                 continue;
             }
 
+            if (word === undefined || word === '' || word === null) {
+                continue;
+            }
+            processedWords.push(word);
+            
             for (let j = 0; j < tempFile2Words.length; j++) {
                 if (tempFile2Words[j][file2IndexWord] === undefined || tempFile2Words[j][file2IndexWord] === '' || tempFile2Words[j][file2IndexWord] === null) {
                     continue;
