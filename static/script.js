@@ -455,6 +455,10 @@ $(document).ready(function () {
      * @returns {boolean} - The result of the evaluation.
      */
     function evaluateExpr(value, comparison, compareValue) {
+        if (value === undefined || value === '' || value === null) {
+            return false;
+        }
+        
         let passed = false;
         if (comparison === '===') {
             passed = value == compareValue;
