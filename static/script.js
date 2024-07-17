@@ -322,7 +322,6 @@ $(document).ready(function () {
                 }
             }
             
-            console.log(tempCsv);
             if (!allEmpty) {
                 tempCsv += '\n';
                 resultCsv += tempCsv;
