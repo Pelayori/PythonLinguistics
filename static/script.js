@@ -387,12 +387,11 @@ $(document).ready(function () {
                 if (tempFile2Words[j][file2IndexWord] === undefined || tempFile2Words[j][file2IndexWord] === '' || tempFile2Words[j][file2IndexWord] === null) {
                     continue;
                 }
-                
+
                 if (word === tempFile2Words[j][file2IndexWord]) {
                     let obj1 = JSON.parse(JSON.stringify(tempFile1Words[i]));
                     let obj2 = JSON.parse(JSON.stringify(tempFile2Words[j]));
                     delete obj2[file2IndexWord];
-                    console.log("Matched", obj1, obj2);
                     combined.push([obj1, obj2]);
                     break;
                 }
