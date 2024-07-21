@@ -30,7 +30,11 @@ $(document).ready(function () {
             onReadFile(contents, fileContentsId);
         };
 
-        reader.readAsText(file);
+        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
     }
 
     /**
@@ -45,6 +49,12 @@ $(document).ready(function () {
         let fileName = target.fileName;
         let fileNumber = 0;
 
+        let isExcel = false;
+        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+            contents = convertExcelToCsv(contents);
+            isExcel = true;
+        }
+
         let fileWasAlreadyLoaded = false;
         if (fileContentsId === 'fileInput1') {
             fileNumber = 1;
@@ -58,7 +68,10 @@ $(document).ready(function () {
             file2Name = fileName;
         }
 
-        $("#delimiterFile" + fileNumber).show();
+        if(!isExcel)
+            $("#delimiterFile" + fileNumber).show();
+        else
+            $("#delimiterFile" + fileNumber).hide();
 
         const parentDiv = $('#file-upload-' + fileNumber);
         const fileContentDiv = parentDiv.find('.file-content');
@@ -621,12 +634,31 @@ $(document).ready(function () {
     function onFileDelimiterChanged() {
         let fileNumber = parseInt($(this).attr('data-file'));
         let joinedContents = fileNumber === 1 ? file1Contents : file2Contents;
-        let delimiter = getCsvDelimiter(fileNumber) === ',' ? ';' : ','
+        let delimiter = getCsvDelimiter(fileNumber) === ',' ? ';' : ',' // get the other one cause at this time the selection has changed
         joinedContents = joinedContents.map(row => row.join(delimiter));
         joinedContents = joinedContents.join('\n');
 
         onReadFile({ result: joinedContents,
              fileName: fileNumber === 1 ? file1Name : file2Name
             }, 'fileInput' + fileNumber);
+    }
+
+    function convertExcelToCsv(content) {
+        const data = new Uint8Array(content);
+        const binaryString = Array.prototype.map.call(data, x => String.fromCharCode(x)).join('');
+        const workbook = XLSX.read(binaryString, { type: 'binary' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const csvContent = XLSX.utils.sheet_to_csv(firstSheet, { FS: ';' }); // Use semicolon as the delimiter
+        return csvContent;
+    }
+
+    function textToBinaryString(text) {
+        const encoder = new TextEncoder();
+        const encodedData = encoder.encode(text);
+        let binaryString = '';
+        for (let i = 0; i < encodedData.length; i++) {
+            binaryString += String.fromCharCode(encodedData[i]);
+        }
+        return binaryString;
     }
 });
