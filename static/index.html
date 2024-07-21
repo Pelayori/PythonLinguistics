@@ -16,32 +16,39 @@
     <main class="flex-shrink-0">
         <div class="container">
             <h1 class="mt-5 text-center">CSV file filtering</h1>
-            <div class="mt-4">
-                <h5>Delimiter</h5>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="delimiter" id="comma" value=",">
-                    <label class="form-check-label" for="comma">,</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="delimiter" id="semicolon" value=";" checked>
-                    <label class="form-check-label" for="semicolon">;</label>
-                </div>
-            </div>
             <div class="row mt-4">
                 <div class="col-md-6">
                     <div class="file-upload" id="file-upload-1">
+                        <div id="delimiterFile1" style="display:none;">
+                            <h5>Delimiter</h5>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input delimiter-input" type="radio" data-file="1" name="delimiter1" id="commaFile1" value=",">
+                                <label class="form-check-label" for="commaFile1">,</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input delimiter-input" type="radio" data-file="1" name="delimiter1" id="semicolonFile1" value=";" checked>
+                                <label class="form-check-label" for="semicolonFile1">;</label>
+                            </div>
+                        </div>
                         <i class="file-icon bi bi-file-earmark-text"></i>
                         <input type="file" id="fileInput1" accept=".csv" class="form-control mt-2">
-
-                        
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="file-upload" id="file-upload-2">
+                        <div id="delimiterFile2" style="display:none;">
+                            <h5>Delimiter</h5>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input delimiter-input" type="radio" data-file="2" name="delimiter2" id="commaFile2" value=",">
+                                <label class="form-check-label" for="commaFile2">,</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input delimiter-input" type="radio" data-file="2" name="delimiter2" id="semicolonFile2" value=";" checked>
+                                <label class="form-check-label" for="semicolonFile2">;</label>
+                            </div>
+                        </div>
                         <i class="file-icon bi bi-file-earmark-text"></i>
                         <input type="file" id="fileInput2" accept=".csv" class="form-control mt-2">
-
-
                     </div>
                 </div>
             </div>

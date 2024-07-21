@@ -3,10 +3,14 @@ $(document).ready(function () {
     $('#fileInput2').on('change', handleFileSelect);
     $("#generateResultsBtn").on('click', generateTableResults);
     $("#generateCsvResults").on('click', generateCsvResults);
+    $(".delimiter-input").on('change', onFileDelimiterChanged);
 
     let file1Loaded = false;
     let file2Loaded = false;
     let restrictionIdNext = 1;
+
+    let file1Name = '';
+    let file2Name = '';
 
     let file1Contents = [];
     let file2Contents = [];
@@ -41,13 +45,20 @@ $(document).ready(function () {
         let fileName = target.fileName;
         let fileNumber = 0;
 
+        let fileWasAlreadyLoaded = false;
         if (fileContentsId === 'fileInput1') {
             fileNumber = 1;
+            fileWasAlreadyLoaded = file1Loaded;
             file1Loaded = true;
+            file1Name = fileName;
         } else if (fileContentsId === 'fileInput2') {
             fileNumber = 2;
+            fileWasAlreadyLoaded = file2Loaded;
             file2Loaded = true;
+            file2Name = fileName;
         }
+
+        $("#delimiterFile" + fileNumber).show();
 
         const parentDiv = $('#file-upload-' + fileNumber);
         const fileContentDiv = parentDiv.find('.file-content');
@@ -67,14 +78,16 @@ $(document).ready(function () {
             return;
         }
         
-        let mappedContents = rows.map(row => row.split(getCsvDelimiter()));
+        let delimiter = getCsvDelimiter(fileNumber);
+        let mappedContents = rows.map(row => row.split(delimiter));
         if (fileNumber === 1) {
             file1Contents = mappedContents;
         } else {
             file2Contents = mappedContents;
         }
 
-        if (rows[0].indexOf(getCsvDelimiter()) === -1) {
+
+        if (fileWasAlreadyLoaded === false && rows[0].indexOf(delimiter) === -1) {
             alert('The file ' + fileName + ' does not contain such delimiter. Please select the correct delimiter or change the file.');
 
             if (fileNumber === 1) {
@@ -85,7 +98,7 @@ $(document).ready(function () {
             return;
         }
 
-        const columns = rows[0].split(getCsvDelimiter());
+        const columns = rows[0].split(delimiter);
 
         const select = $('<select class="form-select word-select" id="select-' + fileNumber + '"></select>');
         const labelSelect = $('<label for="select-' + fileNumber + '">Select word column</label>');
@@ -126,8 +139,8 @@ $(document).ready(function () {
      * Retrieves the CSV delimiter based on the selected checkbox.
      * @returns {string} The CSV delimiter.
      */
-    function getCsvDelimiter() {
-        if ($('#semicolon').is(':checked')) {
+    function getCsvDelimiter(fileNumber) {
+        if ($('#semicolonFile' + fileNumber).is(':checked')) {
             return ';';
         } else {
             return ',';
@@ -285,7 +298,7 @@ $(document).ready(function () {
      */
     function generateCsvResults() {
         let resultCsv = '';
-        let delimiter = getCsvDelimiter();
+        let delimiter = getCsvDelimiter(1);
         let result = generateResults();
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
@@ -477,7 +490,6 @@ $(document).ready(function () {
         } else if (comparison === 'not_contains') {
             passed = !value.includes(compareValue);
         } else if (comparison === 'starts_with') {
-            console.log("Value: " + value + " CompareValue: " + compareValue, "Types: " + typeof value + " " + typeof compareValue);
             passed = value.substring(0, compareValue.length) === compareValue;
         } else if (comparison === 'contains_character') {
             for (let i = 0; i < compareValue.length; i++) {
@@ -487,7 +499,6 @@ $(document).ready(function () {
                 }
             }
         } else if (comparison === 'starts_with_character') {
-            console.log("Value: " + value + " CompareValue: " + compareValue, "Types: " + typeof value + " " + typeof compareValue);
             for (let i = 0; i < compareValue.length; i++) {
                 if (value.substring(0, compareValue[i].length) === compareValue[i]) {
                     passed = true;
@@ -605,5 +616,17 @@ $(document).ready(function () {
      */
     function isColumnSelected(file, index) {
         return $(`input[data-file="${file}"][data-index="${index}"]`).is(':checked');
+    }
+
+    function onFileDelimiterChanged() {
+        let fileNumber = parseInt($(this).attr('data-file'));
+        let joinedContents = fileNumber === 1 ? file1Contents : file2Contents;
+        let delimiter = getCsvDelimiter(fileNumber) === ',' ? ';' : ','
+        joinedContents = joinedContents.map(row => row.join(delimiter));
+        joinedContents = joinedContents.join('\n');
+
+        onReadFile({ result: joinedContents,
+             fileName: fileNumber === 1 ? file1Name : file2Name
+            }, 'fileInput' + fileNumber);
     }
 });
