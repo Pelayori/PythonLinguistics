@@ -25,16 +25,20 @@ $(document).ready(function () {
         const reader = new FileReader();
         const fileContentsId = event.target.id;
         reader.fileName = file.name;
+        initProcessingProgressBar();
         reader.onload = function (e) {
             const contents = e.target;
+            setProgressBarValue(100);
             onReadFile(contents, fileContentsId);
         };
 
-        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-            reader.readAsArrayBuffer(file);
-        } else {
-            reader.readAsText(file);
-        }
+        setTimeout(() => {
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+        }, 500);
     }
 
     /**
@@ -48,6 +52,8 @@ $(document).ready(function () {
         let contents = target.result;
         let fileName = target.fileName;
         let fileNumber = 0;
+
+        initProcessingProgressBar();
 
         let isExcel = false;
         if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
@@ -88,6 +94,8 @@ $(document).ready(function () {
             } else {
                 file2Loaded = false;
             }
+
+            closeProcessingProgressBar();
             return;
         }
         
@@ -108,14 +116,22 @@ $(document).ready(function () {
             } else {
                 file2Loaded = false;
             }
+            closeProcessingProgressBar();
+            
             return;
         }
 
+        initProcessingProgressBar();
+
         const columns = rows[0].split(delimiter);
+        
+        let progress = 0;
 
         const select = $('<select class="form-select word-select" id="select-' + fileNumber + '"></select>');
         const labelSelect = $('<label for="select-' + fileNumber + '">Select word column</label>');
         for (let i = 0; i < columns.length; i++) {
+            progress = Math.round((i / columns.length) * 90);
+            setProgressBarValue(progress);
             select.append('<option value="' + i + '">' + columns[i] + '</option>');
         }
         
@@ -140,12 +156,16 @@ $(document).ready(function () {
                                     </div>`;
         fileContent.append(restrictionsHtml);
         parentDiv.append(fileContent);
-
+        
         $('#addRestrictionBtn' + fileNumber).on('click', addRestriction.bind(null, fileNumber));
 
-        if (file1Loaded && file2Loaded) {
-            onBothFilesLoaded();
-        }
+        setProgressBarValue(100);
+
+        setTimeout(() => {
+            if (file1Loaded && file2Loaded) {
+                onBothFilesLoaded();
+            }
+        }, 100);
     }
 
     /**
@@ -302,27 +322,37 @@ $(document).ready(function () {
         resultHtml += '</tbody></table>';
 
         $('#results').html(resultHtml);
+
+        closeProcessingProgressBar();
     }
 
     /**
-     * Generates a CSV file containing the results.
+     * Generates a CSV blob containing the results based on selected columns from two files.
      * 
-     * @returns {void}
+     * @returns {string} The generated CSV blob.
      */
-    function generateCsvResults() {
+    function generateResultBlob() {
+        initProcessingProgressBar();
+        
         let resultCsv = '';
         let delimiter = getCsvDelimiter(1);
         let result = generateResults();
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
 
+        let progress = 0;
+
         for (let i = 0; i < file1Columns.length; i++) {
+            progress += Math.round((i / file1Columns.length) * 5) / file1Columns.length;
+            setProgressBarValue(progress);
             if (!isColumnSelected(1, i)) {
                 continue;
             }
             resultCsv += file1Columns[i].replace('\r', '') + delimiter;
         }
         for (let i = 0; i < file2Columns.length; i++) {
+            progress += Math.round((i / file2Columns.length) * 5) / file2Columns.length;
+            setProgressBarValue(progress);
             if (!isColumnSelected(2, i)) {
                 continue;
             }
@@ -335,6 +365,9 @@ $(document).ready(function () {
             let tempCsv = '';
             let allEmpty = true;
             for (let j = 0; j < row.length; j++) {
+                progress += Math.round((j / row.length) * 90) / row.length;
+                setProgressBarValue(progress);
+
                 let columns = row[j];
                 for (let k = 0; k < columns.length; k++) {
                     if (!isColumnSelected(j + 1, k)) {
@@ -354,7 +387,18 @@ $(document).ready(function () {
             }
         }
 
-        
+        setProgressBarValue(100);
+        return resultCsv;
+    }
+
+    /**
+     * Generates a CSV file containing the results.
+     * 
+     * @returns {void}
+     */
+    function generateCsvResults() {
+        let resultCsv = generateResultBlob();
+
         let blob = new Blob([resultCsv], { type: 'text/csv' });
         let url = URL.createObjectURL(blob);
         let a = document.createElement('a');
@@ -362,7 +406,7 @@ $(document).ready(function () {
         a.download = 'results.csv';
         a.click();
     }
-
+    
     /**
      * Retrieves the restrictions based on the given file number.
      * @param {number} fileNumber - The file number to retrieve restrictions for.
@@ -587,6 +631,7 @@ $(document).ready(function () {
      * Handles the logic for when both files are loaded.
      */
     function onBothFilesLoaded() {
+        initProcessingProgressBar();
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
 
@@ -594,8 +639,11 @@ $(document).ready(function () {
         $('#checkbox-group').empty();
 
         $('#checkbox-group').append('<h2>Choose columns to show</h2>');
+        let progress = 0;
 
         for (let i = 0; i < file1Columns.length; i++) {
+            progress = Math.round((i / file1Columns.length) * 50);
+            setProgressBarValue(progress);
             let label = file1Columns[i];
             $('#checkbox-group').append(`
                 <div class="form-check checkbox-item">
@@ -607,7 +655,10 @@ $(document).ready(function () {
             `);
         }
 
+        let progress2 = 15;
         for (let i = 0; i < file2Columns.length; i++) {
+            progress2 = Math.round((i / file2Columns.length) * 50);
+            setProgressBarValue(progress + progress2);
             let label = file2Columns[i];
             $('#checkbox-group').append(`
                 <div class="form-check checkbox-item">
@@ -618,6 +669,8 @@ $(document).ready(function () {
                 </div>
             `);
         }
+
+        closeProcessingProgressBar();
     }
 
     /**
@@ -652,13 +705,31 @@ $(document).ready(function () {
         return csvContent;
     }
 
-    function textToBinaryString(text) {
-        const encoder = new TextEncoder();
-        const encodedData = encoder.encode(text);
-        let binaryString = '';
-        for (let i = 0; i < encodedData.length; i++) {
-            binaryString += String.fromCharCode(encodedData[i]);
-        }
-        return binaryString;
+    function initProcessingProgressBar() {
+        setTimeout(() => {
+            setProgressBarValue(0);
+            let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('fileLoadingModal'));
+            modal.show();
+        }, 50);
+    }
+
+    function closeProcessingProgressBar() {
+        setTimeout(() => {
+            let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('fileLoadingModal'));
+            modal.hide();
+        }, 100);
+    }
+
+    function setProgressBarValue(value) {
+        setTimeout(() => {
+            let progressBar = $('#dialogProcessProgressBar');
+            progressBar.attr('aria-valuenow', value);
+            progressBar.css('width', value + '%');
+            if (value === 100) {
+                setTimeout(() => {
+                    closeProcessingProgressBar();
+                }, 500);
+            }
+        }, 0);
     }
 });
