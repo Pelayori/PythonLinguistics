@@ -263,10 +263,10 @@ $(document).ready(function () {
             return;
         }
 
-        let file1Words = generateFile1Results();
-        let file2Words = generateFile2Results();
+        let file1Words = generateFile1Results(); // 15%
+        let file2Words = generateFile2Results(); // 15%
 
-        let combined = combineArrays(file1Words, file2Words);
+        let combined = combineArrays(file1Words, file2Words); // 20%
 
         return combined;
     }
@@ -276,54 +276,57 @@ $(document).ready(function () {
      * @returns {void}
      */
     function generateTableResults() {
-        let result = generateResults();
-        let resultHtml = '<table class="table table-bordered table-striped mx-4 my-4"><thead><tr>';
-        let file1Columns = file1Contents[0];
-        let file2Columns = file2Contents[0];
+        initProcessingProgressBar();
 
-        for (let i = 0; i < file1Columns.length; i++) {
-            if (!isColumnSelected(1, i)) {
-                continue;
+        setTimeout(() => {
+            let result = generateResults();
+            let resultHtml = '<table class="table table-bordered table-striped mx-4 my-4"><thead><tr>';
+            let file1Columns = file1Contents[0];
+            let file2Columns = file2Contents[0];
+
+            for (let i = 0; i < file1Columns.length; i++) {
+                if (!isColumnSelected(1, i)) {
+                    continue;
+                }
+                resultHtml += '<th>' + file1Columns[i] + '</th>';
             }
-            resultHtml += '<th>' + file1Columns[i] + '</th>';
-        }
-        for (let i = 0; i < file2Columns.length; i++) {
-            if (!isColumnSelected(2, i)) {
-                continue;
+            for (let i = 0; i < file2Columns.length; i++) {
+                if (!isColumnSelected(2, i)) {
+                    continue;
+                }
+                resultHtml += '<th>' + file2Columns[i] + '</th>';
             }
-            resultHtml += '<th>' + file2Columns[i] + '</th>';
-        }
-        resultHtml += '</tr></thead><tbody>';
+            resultHtml += '</tr></thead><tbody>';
 
-        for (let i = 1; i < result.length; i++) {
-            let row = result[i];
-            let tempHtml = '<tr>';
-            let allEmpty = true;
-            for (let j = 0; j < row.length; j++) {
-                let columns = row[j];
-                for (let k = 0; k < columns.length; k++) {
-                    if (!isColumnSelected(j + 1, k)) {
-                        continue;
-                    }
+            for (let i = 1; i < result.length; i++) {
+                let row = result[i];
+                let tempHtml = '<tr>';
+                let allEmpty = true;
+                for (let j = 0; j < row.length; j++) {
+                    let columns = row[j];
+                    for (let k = 0; k < columns.length; k++) {
+                        if (!isColumnSelected(j + 1, k)) {
+                            continue;
+                        }
 
-                    if (allEmpty && columns[k] !== undefined && columns[k] !== '') {
-                        allEmpty = false;
+                        if (allEmpty && columns[k] !== undefined && columns[k] !== '') {
+                            allEmpty = false;
+                        }
+                        tempHtml += '<td>' + columns[k] + '</td>';
                     }
-                    tempHtml += '<td>' + columns[k] + '</td>';
+                }
+                tempHtml += '</tr>';
+
+                if (!allEmpty) {
+                    resultHtml += tempHtml;
                 }
             }
-            tempHtml += '</tr>';
 
-            if (!allEmpty) {
-                resultHtml += tempHtml;
-            }
-        }
+            resultHtml += '</tbody></table>';
 
-        resultHtml += '</tbody></table>';
-
-        $('#results').html(resultHtml);
-
-        closeProcessingProgressBar();
+            setProgressBarValue(100);   
+            $('#results').html(resultHtml);
+        }, 500);
     }
 
     /**
@@ -332,15 +335,13 @@ $(document).ready(function () {
      * @returns {string} The generated CSV blob.
      */
     function generateResultBlob() {
-        initProcessingProgressBar();
-        
         let resultCsv = '';
         let delimiter = getCsvDelimiter(1);
         let result = generateResults();
         let file1Columns = file1Contents[0];
         let file2Columns = file2Contents[0];
 
-        let progress = 0;
+        let progress = getProgressBarValue();
 
         for (let i = 0; i < file1Columns.length; i++) {
             progress += Math.round((i / file1Columns.length) * 5) / file1Columns.length;
@@ -365,7 +366,7 @@ $(document).ready(function () {
             let tempCsv = '';
             let allEmpty = true;
             for (let j = 0; j < row.length; j++) {
-                progress += Math.round((j / row.length) * 90) / row.length;
+                progress += Math.round((j / row.length) * 40) / row.length;
                 setProgressBarValue(progress);
 
                 let columns = row[j];
@@ -397,14 +398,19 @@ $(document).ready(function () {
      * @returns {void}
      */
     function generateCsvResults() {
-        let resultCsv = generateResultBlob();
+        initProcessingProgressBar();
 
-        let blob = new Blob([resultCsv], { type: 'text/csv' });
-        let url = URL.createObjectURL(blob);
-        let a = document.createElement('a');
-        a.href = url;
-        a.download = 'results.csv';
-        a.click();
+        setTimeout(() => {
+            let resultCsv = generateResultBlob();
+
+            let blob = new Blob([resultCsv], { type: 'text/csv' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'results.csv';
+            a.click();
+            closeProcessingProgressBar();
+        }, 500);
     }
     
     /**
@@ -433,12 +439,19 @@ $(document).ready(function () {
         let file1Words = [];
         let isAnd = $('#and1').is(':checked');
         let restrictions1 = getRestrictions(1);
-
+        
+        let progress = getProgressBarValue();
         if (restrictions1.length === 0) {
+            progress += 15;
+            setProgressBarValue(progress);
             return file1Contents;
         }
+        
 
         for (let i = 1; i < file1Contents.length; i++) {
+            progress += Math.round((i / file1Contents.length) * 15) / file1Contents.length;
+            setProgressBarValue(progress);
+
             let row = file1Contents[i];
             let word = row[$("#select-1").find(":selected").val()];
             if (word === undefined || word === '' || word === null) {
@@ -478,11 +491,17 @@ $(document).ready(function () {
         let isAnd = $('#and2').is(':checked');
         let restrictions2 = getRestrictions(2);
 
+        let progress = getProgressBarValue();
         if (restrictions2.length === 0) {
+            progress += 15;
+            setProgressBarValue(progress);
             return file2Contents;
         }
 
         for (let i = 1; i < file2Contents.length; i++) {
+            progress += Math.round((i / file2Contents.length) * 15) / file2Contents.length;
+            setProgressBarValue(progress);
+
             let row = file2Contents[i];
             let word = row[$("#select-2").find(":selected").val()];
             if (word === undefined || word === '' || word === null) {
@@ -582,7 +601,11 @@ $(document).ready(function () {
         let file2IndexWord = $("#select-2").find(":selected").val();
 
         let combined = [];
+        let progress = getProgressBarValue();
+
         for (let i = 0; i < tempFile1Words.length; i++) {
+            progress += Math.round((i / tempFile1Words.length) * 20) / tempFile1Words.length;
+            setProgressBarValue(progress);
             let word = tempFile1Words[i][file1IndexWord];
             if (processedWords.includes(word)) {
                 continue;
@@ -720,16 +743,36 @@ $(document).ready(function () {
         }, 100);
     }
 
-    function setProgressBarValue(value) {
-        setTimeout(() => {
-            let progressBar = $('#dialogProcessProgressBar');
-            progressBar.attr('aria-valuenow', value);
-            progressBar.css('width', value + '%');
-            if (value === 100) {
-                setTimeout(() => {
-                    closeProcessingProgressBar();
-                }, 500);
-            }
-        }, 0);
+    function setProgressBarValue(val) {
+        let value = Math.round(val);
+        if (value > 100) {
+            value = 100;
+        }
+
+        console.log(value);
+        let progressBar = $('#dialogProcessProgressBar');
+        progressBar.attr('aria-valuenow', value);
+        progressBar.css('width', value + '%');
+        if (value >= 100) {
+            setTimeout(() => {
+                closeProcessingProgressBar();
+            }, 500);
+        }
+    }
+
+    function getProgressBarValue() {
+        let progressBar = $('#dialogProcessProgressBar');
+        let val = progressBar.css('width');
+        val = val.replace('%', '');
+        
+        if (val === undefined) {
+            return 0;
+        }
+
+        if (isNaN(val)) {
+            return 0;
+        }
+
+        return parseInt(val);
     }
 });
