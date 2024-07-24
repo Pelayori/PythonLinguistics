@@ -1,4 +1,8 @@
 $(document).ready(function () {
+    if (!window.Worker) {
+        alert('Your browser is not supported, the filtering will not work correctly');
+    }
+
     $('#fileInput1').on('change', handleFileSelect);
     $('#fileInput2').on('change', handleFileSelect);
     $("#generateResultsBtn").on('click', generateTableResults);
@@ -14,6 +18,7 @@ $(document).ready(function () {
 
     let file1Contents = [];
     let file2Contents = [];
+    let worker = undefined;
 
     /**
      * Handles the file selection event.
@@ -253,143 +258,72 @@ $(document).ready(function () {
     }
 
     /**
-     * Generates the results by combining the words from two loaded files.
-     * 
-     * @returns {Array} The combined array of words from both files.
+     * Generates a table of results based on the selected columns from two files.
+     * @returns {void}
      */
-    function generateResults() {
+    function generateTableResults() {
         if (!file1Loaded || !file2Loaded) {
             alert('Please select both files');
             return;
         }
 
-        let file1Words = generateFile1Results(); // 15%
-        let file2Words = generateFile2Results(); // 15%
+        if (worker) {
+            worker.terminate();
+            worker = undefined;
+        }
 
-        let combined = combineArrays(file1Words, file2Words); // 20%
-
-        return combined;
-    }
-
-    /**
-     * Generates a table of results based on the selected columns from two files.
-     * @returns {void}
-     */
-    function generateTableResults() {
         initProcessingProgressBar();
-
-        setTimeout(() => {
-            let result = generateResults();
-            let resultHtml = '<table class="table table-bordered table-striped mx-4 my-4"><thead><tr>';
-            let file1Columns = file1Contents[0];
-            let file2Columns = file2Contents[0];
-
-            for (let i = 0; i < file1Columns.length; i++) {
-                if (!isColumnSelected(1, i)) {
-                    continue;
-                }
-                resultHtml += '<th>' + file1Columns[i] + '</th>';
-            }
-            for (let i = 0; i < file2Columns.length; i++) {
-                if (!isColumnSelected(2, i)) {
-                    continue;
-                }
-                resultHtml += '<th>' + file2Columns[i] + '</th>';
-            }
-            resultHtml += '</tr></thead><tbody>';
-
-            for (let i = 1; i < result.length; i++) {
-                let row = result[i];
-                let tempHtml = '<tr>';
-                let allEmpty = true;
-                for (let j = 0; j < row.length; j++) {
-                    let columns = row[j];
-                    for (let k = 0; k < columns.length; k++) {
-                        if (!isColumnSelected(j + 1, k)) {
-                            continue;
-                        }
-
-                        if (allEmpty && columns[k] !== undefined && columns[k] !== '') {
-                            allEmpty = false;
-                        }
-                        tempHtml += '<td>' + columns[k] + '</td>';
-                    }
-                }
-                tempHtml += '</tr>';
-
-                if (!allEmpty) {
-                    resultHtml += tempHtml;
-                }
-            }
-
-            resultHtml += '</tbody></table>';
-
-            setProgressBarValue(100);   
-            $('#results').html(resultHtml);
-        }, 500);
+        worker = new Worker('worker.js');
+        worker.onmessage = onWorkerMessage;
+        worker.postMessage({
+            action: 'generateResults',
+            data: gatherFileDataForWorker('table')
+        });
     }
 
-    /**
-     * Generates a CSV blob containing the results based on selected columns from two files.
-     * 
-     * @returns {string} The generated CSV blob.
-     */
-    function generateResultBlob() {
-        let resultCsv = '';
-        let delimiter = getCsvDelimiter(1);
-        let result = generateResults();
-        let file1Columns = file1Contents[0];
-        let file2Columns = file2Contents[0];
-
-        let progress = getProgressBarValue();
-
-        for (let i = 0; i < file1Columns.length; i++) {
-            progress += Math.round((i / file1Columns.length) * 5) / file1Columns.length;
-            setProgressBarValue(progress);
-            if (!isColumnSelected(1, i)) {
-                continue;
-            }
-            resultCsv += file1Columns[i].replace('\r', '') + delimiter;
-        }
-        for (let i = 0; i < file2Columns.length; i++) {
-            progress += Math.round((i / file2Columns.length) * 5) / file2Columns.length;
-            setProgressBarValue(progress);
-            if (!isColumnSelected(2, i)) {
-                continue;
-            }
-            resultCsv += file2Columns[i].replace('\r', '') + delimiter;
+    function onWorkerMessage(e) {
+        if (e.data.action === 'setProgressBarValue') {
+            setProgressBarValue(e.data.value);
         }
 
-        resultCsv += '\n';
-        for (let i = 1; i < result.length; i++) {
-            let row = result[i];
-            let tempCsv = '';
-            let allEmpty = true;
-            for (let j = 0; j < row.length; j++) {
-                progress += Math.round((j / row.length) * 40) / row.length;
-                setProgressBarValue(progress);
-
-                let columns = row[j];
-                for (let k = 0; k < columns.length; k++) {
-                    if (!isColumnSelected(j + 1, k)) {
-                        continue;
-                    }
-
-                    if (allEmpty && columns[k] !== undefined && columns[k] !== '') {
-                        allEmpty = false;
-                    }
-                    tempCsv += columns[k].replace('\r', '') + delimiter;
-                }
-            }
-            
-            if (!allEmpty) {
-                tempCsv += '\n';
-                resultCsv += tempCsv;
-            }
+        else if (e.data.action === 'resultTable') {
+            let results = e.data.results;
+            showTable(results);
         }
 
-        setProgressBarValue(100);
-        return resultCsv;
+        else if (e.data.action === 'log') {
+            console.log(e.data.value);
+        }
+
+        else if (e.data.action === 'resultBlob') {
+            let blob = new Blob([e.data.results], { type: 'text/csv' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'results.csv';
+            a.click();
+            closeProcessingProgressBar();
+        }
+    }
+
+    function gatherFileDataForWorker(forResultType) {
+        return {
+            file1Contents: file1Contents,
+            file2Contents: file2Contents,
+            file1Columns: file1Contents[0],
+            file2Columns: file2Contents[0],
+            restrictions1: getRestrictions(1),
+            restrictions2: getRestrictions(2),
+            selectionMatrix: getSelectionMatrix(),
+            isAnd1: $('#and1').is(':checked'),
+            isAnd2: $('#and2').is(':checked'),
+            file1IndexWord: $('#select-1').find(":selected").val(),
+            file2IndexWord: $('#select-2').find(":selected").val(),
+            forResultType: forResultType,
+            progressBarValue: getProgressBarValue(),
+            csvDelimiter1: getCsvDelimiter(1),
+            csvDelimiter2: getCsvDelimiter(2)
+        };
     }
 
     /**
@@ -398,19 +332,18 @@ $(document).ready(function () {
      * @returns {void}
      */
     function generateCsvResults() {
+        if (!file1Loaded || !file2Loaded) {
+            alert('Please select both files');
+            return;
+        }
+
         initProcessingProgressBar();
-
-        setTimeout(() => {
-            let resultCsv = generateResultBlob();
-
-            let blob = new Blob([resultCsv], { type: 'text/csv' });
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = 'results.csv';
-            a.click();
-            closeProcessingProgressBar();
-        }, 500);
+        worker = new Worker('worker.js');
+        worker.onmessage = onWorkerMessage;
+        worker.postMessage({
+            action: 'generateResults',
+            data: gatherFileDataForWorker('csv')
+        });
     }
     
     /**
@@ -429,225 +362,6 @@ $(document).ready(function () {
             restrictions.push(restriction);
         });
         return restrictions;
-    }
-
-    /**
-     * Generates file1 results based on the given restrictions and selected options.
-     * @returns {Array} An array of file1 words that pass the restrictions.
-     */
-    function generateFile1Results() {
-        let file1Words = [];
-        let isAnd = $('#and1').is(':checked');
-        let restrictions1 = getRestrictions(1);
-        
-        let progress = getProgressBarValue();
-        if (restrictions1.length === 0) {
-            progress += 15;
-            setProgressBarValue(progress);
-            return file1Contents;
-        }
-        
-
-        for (let i = 1; i < file1Contents.length; i++) {
-            progress += Math.round((i / file1Contents.length) * 15) / file1Contents.length;
-            setProgressBarValue(progress);
-
-            let row = file1Contents[i];
-            let word = row[$("#select-1").find(":selected").val()];
-            if (word === undefined || word === '' || word === null) {
-                continue;
-            }
-
-            let passed = false;
-            for (let j = 0; j < restrictions1.length; j++) {
-                let restriction = restrictions1[j];
-                let column1 = restriction.column1;
-                let comparison = restriction.comparison;
-                let isColumn = restriction.isColumn;
-                let column2 = restriction.column2;
-
-                let value = row[column1];
-                let compareValue = isColumn ? row[column2] : column2;
-
-                passed = evaluateExpr(parseComparableValue(value), comparison, parseComparableValue(compareValue));
-
-                if (isAnd && !passed) {
-                    break;
-                } else if (!isAnd && passed) {
-                    break;
-                }
-            }
-
-            if (passed) {
-                file1Words.push(row);
-            }
-        }
-
-        return file1Words;
-    }
-
-    function generateFile2Results() {
-        let file2Words = [];
-        let isAnd = $('#and2').is(':checked');
-        let restrictions2 = getRestrictions(2);
-
-        let progress = getProgressBarValue();
-        if (restrictions2.length === 0) {
-            progress += 15;
-            setProgressBarValue(progress);
-            return file2Contents;
-        }
-
-        for (let i = 1; i < file2Contents.length; i++) {
-            progress += Math.round((i / file2Contents.length) * 15) / file2Contents.length;
-            setProgressBarValue(progress);
-
-            let row = file2Contents[i];
-            let word = row[$("#select-2").find(":selected").val()];
-            if (word === undefined || word === '' || word === null) {
-                continue;
-            }
-
-            let passed = false;
-            for (let j = 0; j < restrictions2.length; j++) {
-                let restriction = restrictions2[j];
-                let column1 = restriction.column1;
-                let comparison = restriction.comparison;
-                let isColumn = restriction.isColumn;
-                let column2 = restriction.column2;
-                
-                let value = row[column1];
-                let compareValue = isColumn ? row[column2] : column2;
-
-                passed = evaluateExpr(parseComparableValue(value), comparison, parseComparableValue(compareValue));
-                if (isAnd && !passed) {
-                    break;
-                } else if (!isAnd && passed) {
-                    break;
-                }
-            }
-
-            if (passed) {
-                file2Words.push(row);
-            }
-        }
-
-        return file2Words;
-    }
-
-    /**
-     * Evaluates an expression based on the given comparison operator and returns a boolean value.
-     *
-     * @param {any} value - The value to be evaluated.
-     * @param {string} comparison - The comparison operator to be used. Possible values are '===', '!==', '>', '<', '>=', '<=', 'contains', 'not_contains', 'starts_with', 'contains_character', 'starts_with_character'.
-     * @param {any} compareValue - The value to compare against.
-     * @returns {boolean} - The result of the evaluation.
-     */
-    function evaluateExpr(value, comparison, compareValue) {
-        if (value === undefined || value === '' || value === null) {
-            return false;
-        }
-
-        let passed = false;
-        if (comparison === '===') {
-            passed = value == compareValue;
-        } else if (comparison === '!==') {
-            passed = value != compareValue;
-        } else if (comparison === '>') {
-            passed = value > compareValue;
-        } else if (comparison === '<') {
-            passed = value < compareValue;
-        } else if (comparison === '>=') {
-            passed = value >= compareValue;
-        } else if (comparison === '<=') {
-            passed = value <= compareValue;
-        } else if (comparison === 'contains') {
-            passed = value.includes(compareValue);
-        } else if (comparison === 'not_contains') {
-            passed = !value.includes(compareValue);
-        } else if (comparison === 'starts_with') {
-            passed = value.substring(0, compareValue.length) === compareValue;
-        } else if (comparison === 'contains_character') {
-            for (let i = 0; i < compareValue.length; i++) {
-                if (value.includes(compareValue[i])) {
-                    passed = true;
-                    break;
-                }
-            }
-        } else if (comparison === 'starts_with_character') {
-            for (let i = 0; i < compareValue.length; i++) {
-                if (value.substring(0, compareValue[i].length) === compareValue[i]) {
-                    passed = true;
-                    break;
-                }
-            }
-        }
-
-        return passed;
-    }
-
-    /**
-     * Combines two arrays of objects based on a selected index word.
-     * @param {Array} file1Words - The first array of objects.
-     * @param {Array} file2Words - The second array of objects.
-     * @returns {Array} - The combined array of objects.
-     */
-    function combineArrays(file1Words, file2Words) {
-        let processedWords = [];
-        let tempFile1Words = JSON.parse(JSON.stringify(file1Words));
-        let tempFile2Words = JSON.parse(JSON.stringify(file2Words));
-
-        let file1IndexWord = $("#select-1").find(":selected").val();
-        let file2IndexWord = $("#select-2").find(":selected").val();
-
-        let combined = [];
-        let progress = getProgressBarValue();
-
-        for (let i = 0; i < tempFile1Words.length; i++) {
-            progress += Math.round((i / tempFile1Words.length) * 20) / tempFile1Words.length;
-            setProgressBarValue(progress);
-            let word = tempFile1Words[i][file1IndexWord];
-            if (processedWords.includes(word)) {
-                continue;
-            }
-
-            if (word === undefined || word === '' || word === null) {
-                continue;
-            }
-            processedWords.push(word);
-            
-            for (let j = 0; j < tempFile2Words.length; j++) {
-                if (tempFile2Words[j][file2IndexWord] === undefined || tempFile2Words[j][file2IndexWord] === '' || tempFile2Words[j][file2IndexWord] === null) {
-                    continue;
-                }
-
-                if (word === tempFile2Words[j][file2IndexWord]) {
-                    let obj1 = JSON.parse(JSON.stringify(tempFile1Words[i]));
-                    let obj2 = JSON.parse(JSON.stringify(tempFile2Words[j]));
-                    combined.push([obj1, obj2]);
-                    break;
-                }
-            }
-        }
-
-        return combined;
-    }
-
-    /**
-     * Parses a comparable value.
-     * 
-     * @param {string} val - The value to be parsed.
-     * @returns {number|string} - The parsed value.
-     */
-    function parseComparableValue(val) {
-        let input = val.replace(',', '.');
-        if (/^-?\d+$/.test(input)) {
-            return parseInt(input, 10);
-        } else if (!isNaN(parseFloat(input))) {
-            return parseFloat(input);
-        } else {
-            return input;
-        }
     }
 
     /**
@@ -696,15 +410,27 @@ $(document).ready(function () {
         closeProcessingProgressBar();
     }
 
-    /**
-     * Checks if a specific column is selected for a given file.
-     *
-     * @param {string} file - The file name.
-     * @param {number} index - The column index.
-     * @returns {boolean} - Returns true if the column is selected, false otherwise.
-     */
-    function isColumnSelected(file, index) {
-        return $(`input[data-file="${file}"][data-index="${index}"]`).is(':checked');
+    function getSelectionMatrix() {
+        // create a matrix of boolean values for the selected columns
+        let matrix = [];
+        let file1Columns = file1Contents[0];
+        let file2Columns = file2Contents[0];
+
+        let column = [];
+        for (let i = 0; i < file1Columns.length; i++) {
+            let selected = $(`input[data-file="1"][data-index="${i}"]`).is(':checked');
+            column.push(selected);
+        }
+        matrix.push(column);
+
+        column = [];
+        for (let i = 0; i < file2Columns.length; i++) {
+            let selected = $(`input[data-file="2"][data-index="${i}"]`).is(':checked');
+            column.push(selected);
+        }
+        matrix.push(column);
+
+        return matrix;
     }
 
     function onFileDelimiterChanged() {
@@ -749,7 +475,7 @@ $(document).ready(function () {
             value = 100;
         }
 
-        console.log(value);
+        //console.log(value);
         let progressBar = $('#dialogProcessProgressBar');
         progressBar.attr('aria-valuenow', value);
         progressBar.css('width', value + '%');
@@ -774,5 +500,9 @@ $(document).ready(function () {
         }
 
         return parseInt(val);
+    }
+
+    function showTable(resultHtml) {
+        $('#results').html(resultHtml);
     }
 });
