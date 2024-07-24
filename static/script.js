@@ -482,6 +482,7 @@ $(document).ready(function () {
         if (value >= 100) {
             setTimeout(() => {
                 closeProcessingProgressBar();
+                setProgressBarValue(0);
             }, 500);
         }
     }
